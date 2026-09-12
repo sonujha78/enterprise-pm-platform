@@ -14,12 +14,15 @@ roles, notifications, and activity tracking.
 - Containerization: Docker / Docker Compose
 
 ## Structure
+
+```
 enterprise-pm-platform/
-├── backend/ # NestJS API
-├── frontend/ # React app
-├── docker/ # docker-compose, Dockerfiles
-├── docs/ # ER diagram, architecture diagram, API docs
-└── .github/ # CI/CD workflows
+├── backend/      # NestJS API
+├── frontend/     # React app
+├── docker/       # docker-compose, Dockerfiles
+├── docs/         # ER diagram, architecture diagram, API docs
+└── .github/      # CI/CD workflows
+```
 
 ## Status
 🚧 Work in progress — see commit history for build stages.
