@@ -8,6 +8,8 @@ import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { TeamsModule } from './teams/teams.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -22,6 +24,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AuthModule,
     OrganizationsModule,
     TeamsModule,
+    ProjectsModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [
