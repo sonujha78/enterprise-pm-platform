@@ -10,6 +10,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { TeamsModule } from './teams/teams.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -26,6 +27,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     TeamsModule,
     ProjectsModule,
     TasksModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

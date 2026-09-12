@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
@@ -14,7 +15,10 @@ import { AddDependencyDto } from './dto/add-dependency.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   private async assertProjectInOrg(organizationId: string, projectId: string) {
     const project = await this.prisma.project.findFirst({
@@ -57,7 +61,6 @@ export class TasksService {
       },
     });
 
-    // Activity log entry
     await this.prisma.activityLog.create({
       data: {
         action: 'TASK_CREATED',
@@ -66,6 +69,21 @@ export class TasksService {
         metadata: { title: task.title },
       },
     });
+
+    // Notify assignee if one was set at creation
+    if (dto.assigneeId) {
+      const assignee = await this.prisma.user.findUnique({
+        where: { id: dto.assigneeId },
+      });
+      if (assignee) {
+        await this.notificationsService.create(
+          assignee.id,
+          'TASK_ASSIGNED',
+          `You were assigned to task "${task.title}"`,
+          assignee.email,
+        );
+      }
+    }
 
     return task;
   }
@@ -78,7 +96,7 @@ export class TasksService {
 
     const where: Prisma.TaskWhereInput = {
       projectId,
-      parentTaskId: null, // top-level tasks only; subtasks fetched via task detail
+      parentTaskId: null,
       ...(query.status ? { status: query.status as any } : {}),
       ...(query.priority ? { priority: query.priority as any } : {}),
       ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
@@ -182,7 +200,6 @@ export class TasksService {
       );
     }
 
-    // If marking completed, ensure blocking dependencies are completed first
     if (dto.status === 'COMPLETED') {
       const blockers = await this.prisma.taskDependency.findMany({
         where: { dependentTaskId: taskId },
@@ -218,6 +235,21 @@ export class TasksService {
         metadata: { changes: JSON.parse(JSON.stringify(dto)) },
       },
     });
+
+    // Notify new assignee if reassigned
+    if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) {
+      const assignee = await this.prisma.user.findUnique({
+        where: { id: dto.assigneeId },
+      });
+      if (assignee) {
+        await this.notificationsService.create(
+          assignee.id,
+          'TASK_ASSIGNED',
+          `You were assigned to task "${updated.title}"`,
+          assignee.email,
+        );
+      }
+    }
 
     return updated;
   }
@@ -267,6 +299,21 @@ export class TasksService {
         taskId,
       },
     });
+
+    // Notify task assignee about the new comment (if not commenting on own task)
+    if (task.assigneeId && task.assigneeId !== authorId) {
+      const assignee = await this.prisma.user.findUnique({
+        where: { id: task.assigneeId },
+      });
+      if (assignee) {
+        await this.notificationsService.create(
+          assignee.id,
+          'COMMENT_MENTION',
+          `New comment on task "${task.title}"`,
+          assignee.email,
+        );
+      }
+    }
 
     return comment;
   }
