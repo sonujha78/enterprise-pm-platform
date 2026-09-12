@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { TeamsModule } from './teams/teams.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -18,6 +20,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     PrismaModule,
     RedisModule,
     AuthModule,
+    OrganizationsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [
