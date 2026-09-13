@@ -30,6 +30,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.22",
     "@nestjs/swagger": "^7.4.2",
+    "@nestjs/terminus": "^10.3.0",
     "@prisma/client": "^5.22.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.81.5",

@@ -12,6 +12,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -30,6 +31,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     TasksModule,
     NotificationsModule,
     DashboardModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
