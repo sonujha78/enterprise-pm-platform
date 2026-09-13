@@ -22,16 +22,159 @@ project creation, and the Kanban task board in action.
 | Containerization   | Docker / Docker Compose                      |
 | CI/CD              | GitHub Actions                               |
 
-## Project Structure
+## Architecture
 
+```mermaid
+graph TB
+    subgraph Client
+        FE[React + TypeScript SPA<br/>Vite]
+    end
+
+    subgraph "Backend — NestJS (Controller → Service → Repository)"
+        API[REST API<br/>/api/v1]
+        Guards[Global Guards<br/>JwtAuthGuard + RolesGuard]
+        AuthMod[Auth Module<br/>JWT, bcrypt, RBAC]
+        OrgMod[Organizations & Teams]
+        ProjMod[Projects Module]
+        TaskMod[Tasks Module]
+        NotifMod[Notifications Module]
+        DashMod[Dashboard Module]
+        Queue[BullMQ Workers<br/>Email + Reminders]
+        Health[Health Check<br/>/api/v1/health]
+        Docs[Swagger Docs<br/>/api/docs]
+    end
+
+    subgraph "Data Layer"
+        PG[(PostgreSQL<br/>via Prisma ORM)]
+        Redis[(Redis<br/>Sessions, Cache, Queue)]
+    end
+
+    subgraph "CI/CD & Deployment"
+        GH[GitHub Actions<br/>Lint → Build → Test → Coverage → Docker Build]
+        DC[Docker Compose<br/>backend + postgres + redis]
+    end
+
+    FE -->|HTTPS + Bearer JWT| API
+    API --> Guards
+    Guards --> AuthMod
+    Guards --> OrgMod
+    Guards --> ProjMod
+    Guards --> TaskMod
+    Guards --> NotifMod
+    Guards --> DashMod
+
+    AuthMod -->|refresh tokens, resets, invites| Redis
+    OrgMod -->|Prisma Client| PG
+    ProjMod -->|Prisma Client| PG
+    TaskMod -->|Prisma Client| PG
+    TaskMod -->|enqueue jobs| Queue
+    NotifMod -->|Prisma Client| PG
+    NotifMod -->|enqueue jobs| Queue
+    DashMod -->|Prisma Client + cache| PG
+    DashMod --> Redis
+
+    Queue -->|dequeue| Redis
+    Queue -->|write notifications| PG
+
+    API --> Health
+    Health --> PG
+    Health --> Redis
+    API --> Docs
+
+    GH -.->|on push/PR: test & build| API
+    DC -.->|orchestrates| API
+    DC -.->|orchestrates| PG
+    DC -.->|orchestrates| Redis
 ```
+
+### Request Flow Example — Creating a Task
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as NestJS Controller
+    participant Guard as JwtAuthGuard + RolesGuard
+    participant Service as TasksService
+    participant DB as PostgreSQL (Prisma)
+    participant Notif as NotificationsService
+    participant Queue as BullMQ (Redis)
+
+    Client->>API: POST /projects/:id/tasks (Bearer token)
+    API->>Guard: Validate JWT + role
+    Guard-->>API: Authorized
+    API->>Service: createTask(dto)
+    Service->>DB: INSERT task, activity_log
+    alt assigneeId provided
+        Service->>Notif: create(TASK_ASSIGNED)
+        Notif->>DB: INSERT notification
+        Notif->>Queue: enqueue email job
+    end
+    Service-->>API: task
+    API-->>Client: 201 Created
+    Queue->>Queue: EmailProcessor sends email (async)
+```
+
+See [docs/architecture.md](./docs/architecture.md) and [docs/er-diagram.md](./docs/er-diagram.md)
+for the deployment topology diagram and the full entity-relationship diagram.
+
+## Project Structure
 enterprise-pm-platform/
-├── backend/ # NestJS API (auth, orgs, teams, projects, tasks, notifications, dashboard)
-├── frontend/ # React + TypeScript SPA
-├── docker/ # docker-compose.yml (postgres, redis, backend)
-├── docs/ # ER diagram, architecture diagram, screenshots, security notes
-└── .github/ # CI/CD workflows
-```
+├── backend/ # NestJS API
+│ ├── src/
+│ │ ├── auth/ # Register, login, JWT strategy, guards, RBAC decorators
+│ │ │ ├── dto/ # Request validation (register, login, reset-password, etc.)
+│ │ │ ├── guards/ # JwtAuthGuard, RolesGuard
+│ │ │ ├── strategies/ # Passport JWT strategy
+│ │ │ └── decorators/ # @Public(), @Roles(), @CurrentUser()
+│ │ ├── organizations/ # Org details, invite users, roles, activate/deactivate
+│ │ ├── teams/ # Team CRUD, membership
+│ │ ├── projects/ # Project CRUD, computed progress, optimistic locking
+│ │ ├── tasks/ # Task CRUD, subtasks, dependencies, comments
+│ │ ├── notifications/ # In-app notifications + BullMQ processors
+│ │ │ └── processors/ # EmailProcessor, NotificationsProcessor (background jobs)
+│ │ ├── dashboard/ # Analytics endpoints (Redis-cached)
+│ │ ├── health/ # /api/v1/health (DB + Redis checks)
+│ │ ├── prisma/ # PrismaService (global DB client)
+│ │ ├── redis/ # RedisService (global cache/queue client)
+│ │ ├── app.module.ts # Root module — wires all feature modules + global guards
+│ │ └── main.ts # Bootstrap, ValidationPipe, Swagger, API prefix
+│ ├── prisma/
+│ │ ├── schema.prisma # 14-model relational schema (source of truth for DB)
+│ │ └── migrations/ # Versioned SQL migrations
+│ ├── test/ # E2E tests (app.e2e-spec.ts, auth.e2e-spec.ts)
+│ ├── Dockerfile # Multi-stage build (builder + production)
+│ ├── jest.config.ts # Unit test config
+│ └── package.json
+│
+├── frontend/ # React + TypeScript SPA (Vite)
+│ ├── src/
+│ │ ├── api/client.ts # Axios instance, auth header + token-refresh interceptor
+│ │ ├── context/AuthContext.tsx # Login/register/logout state, localStorage persistence
+│ │ ├── components/
+│ │ │ ├── Layout.tsx # Sidebar navigation + user info
+│ │ │ └── ProtectedRoute.tsx # Redirects unauthenticated users to /login
+│ │ ├── pages/
+│ │ │ ├── Login.tsx / Register.tsx
+│ │ │ ├── Dashboard.tsx # Stats cards + Recharts (status/priority breakdown)
+│ │ │ ├── Projects.tsx # Project grid + create-project modal
+│ │ │ └── ProjectDetail.tsx # Kanban board (To Do / In Progress / Completed)
+│ │ ├── types/index.ts # Shared TypeScript interfaces (User, Project, Task)
+│ │ └── App.tsx # Router setup
+│ └── package.json
+│
+├── docker/
+│ └── docker-compose.yml # postgres + redis + backend, one command to run everything
+│
+├── docs/
+│ ├── er-diagram.md # Full entity-relationship diagram (Mermaid)
+│ ├── architecture.md # System + deployment diagrams, design decisions
+│ ├── security.md # Auth, RBAC, validation, secrets — security posture
+│ ├── test-report.md # Test coverage summary by module
+│ ├── postman_collection.json # Importable Postman collection (all endpoints)
+│ └── screenshots/ # App walkthrough screenshots
+│
+└── .github/
+└── workflows/ci.yml # Lint, build, unit tests, E2E tests, coverage, Docker build
 
 ## Features
 
@@ -46,8 +189,7 @@ enterprise-pm-platform/
 - **Dashboard & Analytics**: project/task totals, overdue tasks, tasks by status/priority,
   user workload, completion trends — Redis-cached
 - **Search, Filter, Pagination**: server-side across projects and tasks
-- **Security**: bcrypt password hashing, rate-limited auth flows, centralized validation,
-  CORS, environment-based secrets
+- **Security**: bcrypt password hashing, centralized validation, CORS, environment-based secrets
 - **Testing**: 50+ unit tests, 8+ E2E tests covering auth, RBAC, and core business logic
 - **DevOps**: multi-stage Docker build, health-check endpoint (`/api/v1/health`), CI pipeline
   that runs lint, build, unit tests, E2E tests, coverage, and a Docker build check on every push
