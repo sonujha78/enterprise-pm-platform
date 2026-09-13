@@ -23,12 +23,15 @@ project creation, and the Kanban task board in action.
 | CI/CD              | GitHub Actions                               |
 
 ## Project Structure
+
+```
 enterprise-pm-platform/
 ├── backend/ # NestJS API (auth, orgs, teams, projects, tasks, notifications, dashboard)
 ├── frontend/ # React + TypeScript SPA
 ├── docker/ # docker-compose.yml (postgres, redis, backend)
 ├── docs/ # ER diagram, architecture diagram, screenshots, security notes
 └── .github/ # CI/CD workflows
+```
 
 ## Features
 
