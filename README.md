@@ -118,6 +118,8 @@ See [docs/architecture.md](./docs/architecture.md) and [docs/er-diagram.md](./do
 for the deployment topology diagram and the full entity-relationship diagram.
 
 ## Project Structure
+
+```
 enterprise-pm-platform/
 ├── backend/ # NestJS API
 │ ├── src/
@@ -175,6 +177,7 @@ enterprise-pm-platform/
 │
 └── .github/
 └── workflows/ci.yml # Lint, build, unit tests, E2E tests, coverage, Docker build
+```
 
 ## Features
 
